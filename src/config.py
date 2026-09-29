@@ -69,12 +69,10 @@ class Config(StrictModel):
             dupes = sorted({n for n in names if names.count(n) > 1})
             if dupes:
                 raise ValueError(f"chat {chat}: duplicate album names {dupes}")
-            ranged = sorted((e for e in entries if e.filters), key=lambda e: e.filters.from_)
-            for prev, cur in zip(ranged, ranged[1:]):
-                if cur.filters.from_ <= prev.filters.to:
-                    raise ValueError(
-                        f"chat {chat}: filters of albums {prev.album!r} and {cur.album!r} overlap"
-                    )
+            ranged = sorted(((e.filters, e.album) for e in entries if e.filters is not None), key=lambda x: x[0].from_)
+            for (prev, prev_album), (cur, cur_album) in zip(ranged, ranged[1:], strict=False):
+                if cur.from_ <= prev.to:
+                    raise ValueError(f"chat {chat}: filters of albums {prev_album!r} and {cur_album!r} overlap")
         return self
 
     def chats(self) -> list[int]:

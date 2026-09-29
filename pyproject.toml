@@ -4,5 +4,27 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2",
+    "pydantic-settings>=2",
     "pyyaml>=6",
 ]
+
+[dependency-groups]
+dev = [
+    "mypy>=1",
+    "ruff",
+    "types-PyYAML",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+files = ["src", "scripts"]
+plugins = ["pydantic.mypy"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -2,7 +2,7 @@
 """Re-shuffle downloaded media between sub-album folders after date ranges in
 .config/tg-to-immich.yaml were changed.
 
-Layout expected under --media-root (default .data/.media):
+Layout expected under --media-root (default .data/media):
 
     <chat id>/<sub-album>/TG_YYYYMMDD_HHMMSS_<msg id>_<original name>
     <chat id>/TG_...                         # media not matching any range
@@ -26,6 +26,7 @@ import argparse
 import re
 import sys
 from collections import Counter
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -54,7 +55,7 @@ def parse_date(name: str) -> date | None:
         return None
 
 
-def iter_media_files(chat_dir: Path):
+def iter_media_files(chat_dir: Path) -> Iterator[Path]:
     """Files directly in the chat dir plus files one level down (sub-albums)."""
     for p in sorted(chat_dir.iterdir()):
         if p.is_file():
@@ -98,13 +99,14 @@ def rel(p: Path, root: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=REPO_ROOT / ".config" / "tg-to-immich.yaml", type=Path)
-    ap.add_argument("--media-root", default=REPO_ROOT / ".data" / ".media", type=Path)
+    ap.add_argument("--media-root", default=REPO_ROOT / ".data" / "media", type=Path)
     ap.add_argument(
         "--chat",
         action="append",
         type=int,
         default=[],
-        help="Only process this exact chat id (e.g. 2572810583). Repeatable. Default: all chats with date-filtered albums.",
+        help="Only process this exact chat id (e.g. 2572810583). Repeatable. "
+        "Default: all chats with date-filtered albums.",
     )
     ap.add_argument("-n", "--dry-run", action="store_true", help="Print what would be moved, change nothing")
     ap.add_argument("-v", "--verbose", action="store_true", help="List every file move, not just the summary")
