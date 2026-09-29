@@ -1,0 +1,17 @@
+# First run:
+#   cp .env.example .env                          # fill in IMMICH_API_URL / IMMICH_API_KEY
+#   docker compose run --rm sync tdl login -T qr  # scan the QR code with Telegram, session is kept in .data/tdl
+#   docker compose run --rm sync tdl chat ls      # chat ids for .data/config/tg-to-immich.yaml
+#   docker compose up -d
+services:
+  sync:
+    image: allburov/telegram-to-immich
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${TZ:-UTC}
+      SYNC_DAYS: ${SYNC_DAYS:-2}
+      SYNC_INTERVAL: ${SYNC_INTERVAL:-6h}
+    volumes:
+      - ./.data:/data

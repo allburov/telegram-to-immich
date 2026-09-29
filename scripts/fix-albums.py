@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Re-shuffle downloaded media between sub-album folders after date ranges in
-.config/tg-to-immich.yaml were changed.
+.data/config/tg-to-immich.yaml were changed.
 
 Layout expected under --media-root (default .data/media):
 
@@ -16,8 +16,8 @@ conflicts are reported and the script exits non-zero.
 
 Usage:
     uv run python scripts/fix-albums.py --dry-run
-    uv run python scripts/fix-albums.py --chat 2572810583 --dry-run
-    uv run python scripts/fix-albums.py --chat 2572810583
+    uv run python scripts/fix-albums.py --chat 1000000002 --dry-run
+    uv run python scripts/fix-albums.py --chat 1000000002
 """
 
 from __future__ import annotations
@@ -98,14 +98,14 @@ def rel(p: Path, root: Path) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", default=REPO_ROOT / ".config" / "tg-to-immich.yaml", type=Path)
+    ap.add_argument("--config", default=REPO_ROOT / ".data" / "config" / "tg-to-immich.yaml", type=Path)
     ap.add_argument("--media-root", default=REPO_ROOT / ".data" / "media", type=Path)
     ap.add_argument(
         "--chat",
         action="append",
         type=int,
         default=[],
-        help="Only process this exact chat id (e.g. 2572810583). Repeatable. "
+        help="Only process this exact chat id (e.g. 1000000002). Repeatable. "
         "Default: all chats with date-filtered albums.",
     )
     ap.add_argument("-n", "--dry-run", action="store_true", help="Print what would be moved, change nothing")

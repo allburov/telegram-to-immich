@@ -1,4 +1,4 @@
-"""Schema and loader for the tg-to-immich sync config (.config/tg-to-immich.yaml)."""
+"""Schema and loader for the tg-to-immich sync config (.data/config/tg-to-immich.yaml)."""
 
 from __future__ import annotations
 

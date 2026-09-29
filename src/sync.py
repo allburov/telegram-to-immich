@@ -71,7 +71,7 @@ def run_sync(req: SyncRequest, settings: Settings, cfg: Config) -> None:
         log_file = settings.log_path / f"immich-go-{chat}-{datetime.now():%Y%m%d-%H%M%S}.log"
         _run(
             [
-                str(settings.immich_go_path),
+                settings.immich_go_path,
                 "upload",
                 "from-folder",
                 f"--server={settings.immich_api_url}",

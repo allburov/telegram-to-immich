@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Sync a date range of Telegram chats into Immich, one folder per chat and day.
 
-Usage (from the repo root, reads ./.env and .config/tg-to-immich.yaml):
+Usage (from the repo root, reads ./.env and .data/config/tg-to-immich.yaml):
     uv run python src/main.py --from 2025-09-01 --to 2025-09-07
-    uv run python src/main.py --from 2025-09-01 --chat 2572810583 --dry-run
+    uv run python src/main.py --from 2025-09-01 --chat 1000000002 --dry-run
     uv run python src/main.py --last-days 2            # yesterday + today (what `make sync` runs)
 """
 
