@@ -1,7 +1,7 @@
 # Run from the repo root: Settings reads ./.env, config is ./.data/config/tg-to-immich.yaml
 # Cron example (every 6h):  0 */6 * * * cd /path/to/telegram-to-immich && make sync >> .data/logs/cron.log 2>&1
 
-.PHONY: install lint fmt sync build
+.PHONY: install lint fmt sync sync-last-2-days build
 
 install:
 	uv sync
@@ -15,8 +15,11 @@ fmt:
 	uv run ruff format src scripts
 	uv run ruff check --fix src scripts
 
-# yesterday + today -> Immich
+# from the last synced day (newest YYYY-MM-DD folder) minus 2 days through today; first run backfills
 sync:
+	uv run python src/main.py --catch-up
+
+sync-last-2-days:
 	uv run python src/main.py --last-days 2
 
 build:

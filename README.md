@@ -38,18 +38,17 @@ sync:
 
 **Connection and paths** come from environment variables or `./.env` (copy `.env.example`):
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `IMMICH_API_URL` | required | Immich server, e.g. `http://immich.local:2283` |
-| `IMMICH_API_KEY` | required | Immich API key |
-| `IMMICH_GO_PATH` | `immich-go` | immich-go binary |
-| `TDL_PATH` | `tdl` | tdl binary |
-| `MEDIA_PATH` | `.data/media` | where downloaded media is kept |
-| `LOG_PATH` | `.data/logs` | immich-go log files |
-| `CONFIG_PATH` | `.data/config/tg-to-immich.yaml` | album config |
-| `SYNC_DAYS` | `2` | Docker only: how many days back each run syncs (2 = yesterday + today) |
-| `SYNC_INTERVAL` | `6h` | Docker only: how often it runs (`30m`, `6h`, `1d`) |
-| `TZ` | system | timezone used for day boundaries |
+| Variable         | Default                          | Meaning                                                                |
+|------------------|----------------------------------|------------------------------------------------------------------------|
+| `IMMICH_API_URL` | required                         | Immich server, e.g. `http://immich.local:2283`                         |
+| `IMMICH_API_KEY` | required                         | Immich API key                                                         |
+| `IMMICH_GO_PATH` | `immich-go`                      | immich-go binary                                                       |
+| `TDL_PATH`       | `tdl`                            | tdl binary                                                             |
+| `MEDIA_PATH`     | `.data/media`                    | where downloaded media is kept                                         |
+| `LOG_PATH`       | `.data/logs`                     | immich-go log files                                                    |
+| `CONFIG_PATH`    | `.data/config/tg-to-immich.yaml` | album config                                                           |
+| `SYNC_INTERVAL`  | `6h`                             | Docker only: how often the catch-up sync runs (`30m`, `6h`, `1d`)      |
+| `TZ`             | system                           | timezone used for day boundaries                                       |
 
 Everything the tool writes or reads lives under `.data/`: `config/`, `media/`, `logs/` and, with Docker, `tdl/`.
 
@@ -62,7 +61,16 @@ uv run python src/main.py --from 2025-09-01 --to 2025-09-07     # a date range, 
 uv run python src/main.py --from 2025-09-01 --chat 1000000002   # one day, one chat
 uv run python src/main.py --last-days 2 --dry-run               # show what would run
 
-make sync                                                      # yesterday + today
+make sync                                                      # catch up: see below
+make sync-last-2-days                                          # yesterday + today
+```
+
+`make sync` (and the Docker loop) continues from where it left off: for each chat it takes the newest
+synced day, goes back 2 days (`--catch-up-days`) to pick up late additions, and syncs through today. On the first run it
+backfills from the earliest date in the album config, or just the last 2 days for chats without date
+ranges (use `--from` once for their history).
+
+```sh
 ```
 
 To run it on a schedule without Docker, use cron:
@@ -73,7 +81,7 @@ To run it on a schedule without Docker, use cron:
 
 ## Docker
 
-The image bundles tdl, immich-go and a loop that syncs the last `SYNC_DAYS` days every `SYNC_INTERVAL`.
+The image bundles tdl, immich-go and a loop that runs the catch-up sync every `SYNC_INTERVAL`.
 `docker-compose.yaml` keeps everything, including the Telegram session, under `./.data`.
 
 ```sh
@@ -89,7 +97,7 @@ docker compose logs -f
 
 `tdl login` also accepts `-T code` (phone number + SMS code). The session is stored in `/data/tdl`, i.e. `.data/tdl` on the host,
 so don't run a host `tdl` against it while the container is up. Any other tdl or sync command can be
-run the same way, e.g. `docker compose run --rm sync python src/main.py --from 2025-09-01 --dry-run`.
+run the same way, e.g. `docker compose run --rm sync python src/main.py --catch-up --dry-run`.
 
 The container exits on a failed sync (a missing login included) and Docker restarts it; see
 `docker compose logs` for the error.
