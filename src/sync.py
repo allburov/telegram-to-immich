@@ -5,8 +5,10 @@ For every chat and every day in the range:
     MEDIA_PATH/<chat>/<YYYY-MM-DD>/export.json     tdl chat export (that day only)
     MEDIA_PATH/<chat>/<YYYY-MM-DD>/<album>/TG_...  tdl dl, one folder per config album accepting the day
 
-then one `immich-go upload from-folder --folder-as-album=FOLDER` per chat over all day folders
-that received media, so the leaf folder name becomes the Immich album.
+then one `immich-go upload from-folder --into-album=<album>` per chat and album over that album's
+day folders that received media. One run per album (not one per chat) because immich-go drops the
+album of a file it has already seen in the same run, so a day shared by two albums would end up in
+only one of them; across runs it adds the existing server asset to the album.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections import defaultdict
 from collections.abc import Iterator
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -76,30 +79,34 @@ def run_sync(req: SyncRequest, settings: Settings, cfg: Config) -> None:
             assert req.date_from and req.date_to  # validated
             start, end = req.date_from, req.date_to
         log.info("chat %s: syncing %s .. %s", chat, start, end)
-        to_upload = [d for day in _days(start, end) if (d := _sync_day(chat, day, req, settings, cfg))]
-        if not to_upload:
+        by_album: dict[str, list[Path]] = defaultdict(list)
+        for day in _days(start, end):
+            for album_dir in _sync_day(chat, day, req, settings, cfg):
+                by_album[album_dir.name].append(album_dir)
+        if not by_album:
             log.info("chat %s: nothing to upload", chat)
             continue
-        log_file = settings.log_path / f"immich-go-{chat}-{datetime.now():%Y%m%d-%H%M%S}.log"
-        _run(
-            [
-                settings.immich_go_path,
-                "upload",
-                "from-folder",
-                f"--server={settings.immich_api_url}",
-                f"--api-key={settings.immich_api_key}",
-                "--folder-as-album=FOLDER",
-                "--pause-immich-jobs=false",
-                "--concurrent-tasks=2",
-                "--no-ui",
-                "--on-errors=continue",
-                f"--log-file={log_file}",
-                *(["--dry-run"] if req.dry_run else []),
-                *map(str, to_upload),
-            ],
-            dry_run=req.dry_run,
-            secret=settings.immich_api_key,
-        )
+        for i, (album, dirs) in enumerate(by_album.items(), start=1):
+            log_file = settings.log_path / f"immich-go-{chat}-{datetime.now():%Y%m%d-%H%M%S}-{i}.log"
+            _run(
+                [
+                    settings.immich_go_path,
+                    "upload",
+                    "from-folder",
+                    f"--server={settings.immich_api_url}",
+                    f"--api-key={settings.immich_api_key}",
+                    f"--into-album={album}",
+                    "--pause-immich-jobs=false",
+                    "--concurrent-tasks=2",
+                    "--no-ui",
+                    "--on-errors=continue",
+                    f"--log-file={log_file}",
+                    *(["--dry-run"] if req.dry_run else []),
+                    *map(str, dirs),
+                ],
+                dry_run=req.dry_run,
+                secret=settings.immich_api_key,
+            )
 
 
 def _catch_up_range(chat: int, overlap: int, settings: Settings, cfg: Config) -> tuple[date, date]:
@@ -131,12 +138,12 @@ def _days(start: date, end: date) -> Iterator[date]:
         d += timedelta(days=1)
 
 
-def _sync_day(chat: int, day: date, req: SyncRequest, settings: Settings, cfg: Config) -> Path | None:
-    """Export + download one chat/day. Returns the day folder if it has media to upload."""
+def _sync_day(chat: int, day: date, req: SyncRequest, settings: Settings, cfg: Config) -> list[Path]:
+    """Export + download one chat/day. Returns the album folders that have media to upload."""
     entries = [e for e in cfg.entries_for(chat) if e.accepts(day)]
     if not entries:
         log.info("chat %s %s: no album covers this day, skipping", chat, day)
-        return None
+        return []
 
     day_dir = settings.media_path / str(chat) / day.isoformat()
     export = day_dir / EXPORT_NAME
@@ -156,7 +163,7 @@ def _sync_day(chat: int, day: date, req: SyncRequest, settings: Settings, cfg: C
             messages = len(json.load(f)["messages"])
         if not messages:
             log.info("chat %s %s: no media messages, skipping", chat, day)
-            return None
+            return []
         log.info("chat %s %s: %d media message(s) -> %s", chat, day, messages, [e.album for e in entries])
 
     for e in entries:
@@ -166,10 +173,10 @@ def _sync_day(chat: int, day: date, req: SyncRequest, settings: Settings, cfg: C
             dry_run=req.dry_run,
         )  # fmt: skip
 
+    album_dirs = [day_dir / e.album for e in entries]
     if req.dry_run:
-        return day_dir
-    has_files = any(p.is_file() for e in entries for p in (day_dir / e.album).glob("*"))
-    return day_dir if has_files else None
+        return album_dirs
+    return [d for d in album_dirs if any(p.is_file() for p in d.glob("*"))]
 
 
 def _run(argv: list[str], *, dry_run: bool, secret: str | None = None) -> None:
